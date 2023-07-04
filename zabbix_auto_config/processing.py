@@ -208,6 +208,7 @@ class SourceMergerProcess(BaseProcess):
         self.db_source_table = "hosts_source"
         self.db_hosts_table = "hosts"
         self.host_modifier_dir = host_modifier_dir
+        self.update_interval = zac_config.merge_interval
 
         self.host_modifiers = self.get_host_modifiers()
         logging.info("Loaded %d host modifiers: %s", len(self.host_modifiers), ", ".join([repr(modifier["name"]) for modifier in self.host_modifiers]))
@@ -218,8 +219,6 @@ class SourceMergerProcess(BaseProcess):
         except psycopg2.OperationalError:
             logging.error("Unable to connect to database. Process exiting with error")
             sys.exit(1)
-
-        self.update_interval = 60
 
     def get_host_modifiers(self):
         sys.path.append(self.host_modifier_dir)
@@ -337,6 +336,7 @@ class ZabbixUpdater(BaseProcess):
 
         self.db_uri = zac_config.db_uri
         self.db_hosts_table = "hosts"
+        self.update_interval = zac_config.zabbix_update_interval
 
         try:
             self.db_connection = psycopg2.connect(self.db_uri)
@@ -346,8 +346,6 @@ class ZabbixUpdater(BaseProcess):
             raise exceptions.ZACException(*e.args)
 
         self.config = zabbix_config
-
-        self.update_interval = 60
 
         pyzabbix_logger = logging.getLogger("pyzabbix")
         pyzabbix_logger.setLevel(logging.ERROR)

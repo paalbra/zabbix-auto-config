@@ -46,6 +46,8 @@ class ZacSettings(BaseSettings):
     source_collector_dir: str
     host_modifier_dir: str
     db_uri: str
+    merge_interval: int = 60
+    zabbix_update_interval: int = 60
 
     health_file: str = None
 
