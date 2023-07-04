@@ -10,11 +10,7 @@ This is a crash course in how to quickly get this application up and running in 
 
 ## Zabbix test instance
 
-Setup a Zabbix test instance with [podman](https://podman.io/) and [podman-compose](https://github.com/containers/podman-compose/).
-
-```bash
-TAG=alpine-5.0-latest ZABBIX_PASSWORD=secret podman-compose up -d
-```
+Follow the [README in the zabbix-simple submodule](./test-instance/zabbix-simple/README.md).
 
 ## Zabbix prerequisites
 
@@ -31,7 +27,7 @@ For automatic linking in templates you could create the templates:
 ## Database
 
 ```bash
-PGPASSWORD=secret psql -h localhost -U postgres -p 5432 -U zabbix << EOF
+PGPASSWORD=something psql -h localhost -U postgres -p 5432 -U zabbix << EOF
 CREATE DATABASE zac;
 \c zac
 CREATE TABLE hosts (
