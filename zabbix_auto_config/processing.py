@@ -562,7 +562,7 @@ class ZabbixHostUpdater(ZabbixUpdater):
             if db_host.proxy_pattern:
                 possible_proxies = [proxy for proxy in zabbix_proxies.values() if re.match(db_host.proxy_pattern, proxy["host"])]
                 if not possible_proxies:
-                    logging.error("Proxy pattern ('%s') for host, '%s' (%s), doesn't match any proxies.", db_host.proxy_pattern, hostname, zabbix_host["hostid"])
+                    logging.warning("Proxy pattern ('%s') for host, '%s' (%s), doesn't match any proxies.", db_host.proxy_pattern, hostname, zabbix_host["hostid"])
                 else:
                     new_proxy = random.choice(possible_proxies)
                     if current_zabbix_proxy and not re.match(db_host.proxy_pattern, current_zabbix_proxy["host"]):
