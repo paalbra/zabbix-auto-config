@@ -126,19 +126,19 @@ def main():
         processes.append(process)
 
     try:
-        process = processing.SourceHandlerProcess("source-handler", state_manager.dict(), config.zac.db_uri, source_hosts_queues)
+        process = processing.SourceHandlerProcess("source-handler", state_manager.dict(), config.zac, source_hosts_queues)
         processes.append(process)
 
-        process = processing.SourceMergerProcess("source-merger", state_manager.dict(), config.zac.db_uri, config.zac.host_modifier_dir)
+        process = processing.SourceMergerProcess("source-merger", state_manager.dict(), config.zac, config.zac.host_modifier_dir)
         processes.append(process)
 
-        process = processing.ZabbixHostUpdater("zabbix-host-updater", state_manager.dict(), config.zac.db_uri, config.zabbix)
+        process = processing.ZabbixHostUpdater("zabbix-host-updater", state_manager.dict(), config.zac, config.zabbix)
         processes.append(process)
 
-        process = processing.ZabbixHostgroupUpdater("zabbix-hostgroup-updater", state_manager.dict(), config.zac.db_uri, config.zabbix)
+        process = processing.ZabbixHostgroupUpdater("zabbix-hostgroup-updater", state_manager.dict(), config.zac, config.zabbix)
         processes.append(process)
 
-        process = processing.ZabbixTemplateUpdater("zabbix-template-updater", state_manager.dict(), config.zac.db_uri, config.zabbix)
+        process = processing.ZabbixTemplateUpdater("zabbix-template-updater", state_manager.dict(), config.zac, config.zabbix)
         processes.append(process)
     except exceptions.ZACException as e:
         logging.error("Failed to initialize child processes. Exiting: %s", str(e))

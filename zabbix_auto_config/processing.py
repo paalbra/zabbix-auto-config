@@ -128,10 +128,10 @@ class SourceCollectorProcess(BaseProcess):
 
 
 class SourceHandlerProcess(BaseProcess):
-    def __init__(self, name, state, db_uri, source_hosts_queues):
+    def __init__(self, name, state, zac_config, source_hosts_queues):
         super().__init__(name, state)
 
-        self.db_uri = db_uri
+        self.db_uri = zac_config.db_uri
         self.db_source_table = "hosts_source"
 
         try:
@@ -201,10 +201,10 @@ class SourceHandlerProcess(BaseProcess):
 
 
 class SourceMergerProcess(BaseProcess):
-    def __init__(self, name, state, db_uri, host_modifier_dir):
+    def __init__(self, name, state, zac_config, host_modifier_dir):
         super().__init__(name, state)
 
-        self.db_uri = db_uri
+        self.db_uri = zac_config.db_uri
         self.db_source_table = "hosts_source"
         self.db_hosts_table = "hosts"
         self.host_modifier_dir = host_modifier_dir
@@ -332,10 +332,10 @@ class SourceMergerProcess(BaseProcess):
 
 
 class ZabbixUpdater(BaseProcess):
-    def __init__(self, name, state, db_uri, zabbix_config):
+    def __init__(self, name, state, zac_config, zabbix_config):
         super().__init__(name, state)
 
-        self.db_uri = db_uri
+        self.db_uri = zac_config.db_uri
         self.db_hosts_table = "hosts"
 
         try:
