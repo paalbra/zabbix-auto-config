@@ -10,6 +10,9 @@ import sys
 import time
 
 import multiprocessing_logging
+import psycopg2
+import pyzabbix
+import requests.exceptions
 import tomli
 
 from . import exceptions
@@ -101,17 +104,54 @@ def log_process_status(processes):
     logging.debug("Process status: %s", ', '.join(process_statuses))
 
 
+def preflight(config):
+    # Test database connectivity
+    try:
+        db_connection = psycopg2.connect(config.zac.db_uri)
+        # TODO: Perform a better schema check?
+        with db_connection, db_connection.cursor() as db_cursor:
+            db_cursor.execute("SELECT * FROM hosts")
+            db_cursor.execute("SELECT * FROM hosts_source")
+    except (psycopg2.OperationalError, psycopg2.errors.UndefinedTable) as e:
+        raise exceptions.ZACException(*e.args)
+
+    # Test API connectivity
+    api = pyzabbix.ZabbixAPI(config.zabbix.url)
+    try:
+        api.login(config.zabbix.username, config.zabbix.password)
+    except Exception as e:
+        raise exceptions.ZACException(*e.args)
+
+    api_version = api.api_version()
+    logging.info(f"Connected to Zabbix (version {api_version}) at {config.zabbix.url}")
+
+    # Create required host groups if missing
+    for hostgroup_name in (config.zabbix.hostgroup_all, config.zabbix.hostgroup_disabled):
+        if not api.hostgroup.get(filter={"name": hostgroup_name}):
+            logging.warning(f"Missing required host group. Will create: {hostgroup_name}")
+            hostgroup = api.hostgroup.create(name=hostgroup_name)
+            logging.info(f"Created hostgroup: {hostgroup_name} ({hostgroup['groupids'][0]})")
+
+
 def main():
     config = get_config()
 
     logging.basicConfig(format='%(asctime)s %(levelname)s [%(processName)s %(process)d] [%(name)s] %(message)s', datefmt="%Y-%m-%dT%H:%M:%S%z", level=logging.DEBUG)
     multiprocessing_logging.install_mp_handler()
+    logging.getLogger("pyzabbix").setLevel(logging.ERROR)
     logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)
 
     if config.zac.health_file is not None:
         health_file = os.path.abspath(config.zac.health_file)
 
     logging.info("Main start (%d) version %s", os.getpid(), __version__)
+
+    try:
+        preflight(config)
+    except exceptions.ZACException as e:
+        logging.error("Failed to perform preflight. Exiting because of error: %s", repr(str(e)))
+        time.sleep(1)  # Prevent exit too fast for logging
+        sys.exit(1)
 
     stop_event = multiprocessing.Event()
     state_manager = multiprocessing.Manager()

@@ -14,7 +14,7 @@ Follow the [README in the zabbix-simple submodule](./test-instance/zabbix-simple
 
 ## Zabbix prerequisites
 
-It is currently assumed that you have the following hostgroups in Zabbix. You should logon to Zabbix and create them:
+A host group for all disabled hosts and all hosts (a default host group) is required and will be created if missing:
 
 * All-auto-disabled-hosts
 * All-hosts

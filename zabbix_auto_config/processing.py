@@ -347,9 +347,6 @@ class ZabbixUpdater(BaseProcess):
 
         self.config = zabbix_config
 
-        pyzabbix_logger = logging.getLogger("pyzabbix")
-        pyzabbix_logger.setLevel(logging.ERROR)
-
         self.api = pyzabbix.ZabbixAPI(self.config.url)
         try:
             self.api.login(self.config.username, self.config.password)
