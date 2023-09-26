@@ -213,13 +213,14 @@ def main():
 
         alive_processes = [process for process in processes if process.is_alive()]
         while alive_processes:
+            # TODO: Do something if this keeps looping? This should never happen since the children are killed.
             process = alive_processes[0]
             logging.info("Waiting for: %s(%d)", process.name, process.pid)
             log_process_status(processes)  # TODO: Too verbose?
             process.join(10)
             if process.exitcode is None:
-                logging.warning("Process hanging. Signaling new terminate: %s(%d)", process.name, process.pid)
-                process.terminate()
+                logging.error("Process still hanging. Sending kill signal: %s(%d)", process.name, process.pid)
+                process.kill()
             time.sleep(1)
             alive_processes = [process for process in processes if process.is_alive()]
 
