@@ -8,12 +8,12 @@ import os
 import os.path
 import sys
 import time
+import tomllib
 
 import multiprocessing_logging
 import psycopg2
 import pyzabbix
 import requests.exceptions
-import tomli
 
 from . import exceptions
 from . import models
@@ -52,7 +52,7 @@ def get_config():
     with open(config_file) as f:
         content = f.read()
 
-    config = tomli.loads(content)
+    config = tomllib.loads(content)
     config = models.Settings(**config)
 
     return config
