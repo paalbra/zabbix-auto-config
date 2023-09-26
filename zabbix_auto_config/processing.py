@@ -347,7 +347,7 @@ class ZabbixUpdater(BaseProcess):
 
         self.config = zabbix_config
 
-        self.api = pyzabbix.ZabbixAPI(self.config.url)
+        self.api = pyzabbix.ZabbixAPI(self.config.url, timeout=self.config.timeout)
         try:
             self.api.login(self.config.username, self.config.password)
         except requests.exceptions.ConnectionError as e:

@@ -31,6 +31,8 @@ class ZabbixSettings(BaseSettings):
     password: str
     dryrun: bool
 
+    timeout: Union[float, Tuple[float, float]] = 30
+
     tags_prefix: str = "zac_"
     managed_inventory: List[str] = []
     failsafe: int = 20

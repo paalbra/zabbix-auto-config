@@ -116,7 +116,7 @@ def preflight(config):
         raise exceptions.ZACException(*e.args)
 
     # Test API connectivity
-    api = pyzabbix.ZabbixAPI(config.zabbix.url)
+    api = pyzabbix.ZabbixAPI(config.zabbix.url, timeout=config.zabbix.timeout)
     try:
         api.login(config.zabbix.username, config.zabbix.password)
     except Exception as e:
