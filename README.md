@@ -16,8 +16,8 @@ Follow the [README in the zabbix-simple submodule](./test-instance/zabbix-simple
 
 A host group for all disabled hosts and all hosts (a default host group) is required and will be created if missing:
 
-* All-auto-disabled-hosts
-* All-hosts
+* All-auto-disabled-hosts (configurable under `zabbix.hostgroup_disabled`)
+* All-hosts (configurable under `zabbix.hostgroup_all`)
 
 For automatic linking in templates you could create the templates:
 
