@@ -1,9 +1,7 @@
 on: [push, pull_request]
 
-name: Test
 jobs:
   test:
-    name: Unit tests
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -11,23 +9,12 @@ jobs:
         python-version:
           - '3.11'
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Cache pip
-        uses: actions/cache@v2
-        with:
-          path: ~/.cache/pip
-          key: v1-pip-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('setup.cfg') }}
-          restore-keys: |
-            v1-pip-${{ runner.os }}-${{ matrix.python-version }}
-            v1-pip-${{ runner.os }}
-            v1-pip-
-      - name: Install Python
-        uses: actions/setup-python@v2
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: |
-          pip install -e .[test]
-      - name: Test
-        run: python -m pytest -vv
+          cache: pip
+          cache-dependency-path: |
+            setup.cfg
+      - run: pip install -e .[test]
+      - run: python -m pytest -vv
