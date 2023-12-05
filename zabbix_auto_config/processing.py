@@ -377,7 +377,7 @@ class ZabbixHostUpdater(ZabbixUpdater):
         if not self.config.dryrun:
             try:
                 disabled_hostgroup_id = self.api.hostgroup.get(filter={"name": self.config.hostgroup_disabled})[0]["groupid"]
-                self.api.host.update(hostid=zabbix_host["hostid"], status=1, templates=[], groups=[{"groupid": disabled_hostgroup_id}])
+                self.api.host.update(hostid=zabbix_host["hostid"], status=1, templates_clear=zabbix_host["parentTemplates"], groups=[{"groupid": disabled_hostgroup_id}])
                 logging.info("Disabling host: '%s' (%s)", zabbix_host["host"], zabbix_host["hostid"])
             except pyzabbix.ZabbixAPIException as e:
                 logging.error("Error when disabling host '%s' (%s): %s", zabbix_host["host"], zabbix_host["hostid"], e.args)
