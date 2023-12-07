@@ -134,6 +134,7 @@ def preflight(config):
 
 
 def main():
+    exit_code = os.EX_OK
     config = get_config()
 
     logging.basicConfig(format='%(asctime)s %(levelname)s [%(processName)s %(process)d] [%(name)s] %(message)s', datefmt="%Y-%m-%dT%H:%M:%S%z", level=logging.DEBUG)
@@ -151,7 +152,7 @@ def main():
     except exceptions.ZACException as e:
         logging.error("Failed to perform preflight. Exiting because of error: %s", repr(str(e)))
         time.sleep(1)  # Prevent exit too fast for logging
-        sys.exit(1)
+        sys.exit(os.EX_UNAVAILABLE)
 
     stop_event = multiprocessing.Event()
     state_manager = multiprocessing.Manager()
@@ -182,7 +183,7 @@ def main():
         processes.append(process)
     except exceptions.ZACException as e:
         logging.error("Failed to initialize child processes. Exiting: %s", str(e))
-        sys.exit(1)
+        sys.exit(os.EX_UNAVAILABLE)
 
     for process in processes:
         process.start()
@@ -201,6 +202,7 @@ def main():
             dead_process_names = [process.name for process in processes if not process.is_alive()]
             if dead_process_names:
                 logging.error("A child has died: %s. Exiting", ', '.join(dead_process_names))
+                exit_code = os.EX_TEMPFAIL
                 stop_event.set()
 
             time.sleep(1)
@@ -225,3 +227,4 @@ def main():
             alive_processes = [process for process in processes if process.is_alive()]
 
     logging.info("Main exit")
+    sys.exit(exit_code)
