@@ -117,6 +117,8 @@ WorkingDirectory=/home/zabbix/zabbix-auto-config
 Environment=PATH=/home/zabbix/zabbix-auto-config/venv/bin
 ExecStart=/home/zabbix/zabbix-auto-config/venv/bin/zac
 TimeoutSec=300
+Restart=always
+RestartSec=10s
 
 [Install]
 WantedBy=multi-user.target
