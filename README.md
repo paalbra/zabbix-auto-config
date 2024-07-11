@@ -2,7 +2,7 @@
 
 Zabbix-auto-config is an utility that aims to automatically configure hosts, host groups, host inventories and templates in the monitoring software [Zabbix](https://www.zabbix.com/).
 
-Note: This is meant to work with Zabbix versions: 7.0.
+Note: This is meant to work with Zabbix versions: 7.0. Compability with other versions is a very low priority.
 
 # Quick start
 
@@ -131,4 +131,3 @@ Zac manages only inventory properties configured as `managed_inventory` in `conf
 1. Add "location=x" to a host in a source and wait for sync
 2. Remove the "location" property from the host in the source
 3. "location=x" will remain in Zabbix
-
