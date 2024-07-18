@@ -2,6 +2,7 @@ import multiprocessing
 import logging
 import datetime
 import importlib
+import json
 import os
 import os.path
 import random
@@ -823,3 +824,157 @@ class ZabbixHostgroupUpdater(ZabbixUpdater):
             if host_hostgroups != old_host_hostgroups:
                 logging.info("Updating hostgroups on host '%s'. Old: %s. New: %s", zabbix_hostname, ", ".join(old_host_hostgroups.keys()), ", ".join(host_hostgroups.keys()))
                 self.set_hostgroups(host_hostgroups, zabbix_host)
+
+
+class ZabbixUserUpdater(ZabbixUpdater):
+    def __init__(self, name, state, zac_config, zabbix_config, user_file):
+        super().__init__(name, state, zac_config, zabbix_config)
+
+        self.user_file = user_file
+
+    def disable_user(self, zabbix_user):
+        # TODO: Should there be a spesific role for disabled users?
+        if not self.config.dryrun:
+            try:
+                disabled_usergroup_id = self.api.usergroup.get(filter={"name": self.config.usergroup_disabled})[0]["usrgrpid"]
+                self.api.user.update(userid=zabbix_user["userid"], usrgrps=[{"usrgrpid": disabled_usergroup_id}])
+                logging.info("Disabling user: '%s' (%s)", zabbix_user["username"], zabbix_user["userid"])
+            except pyzabbix.ZabbixAPIException as e:
+                logging.error("Error when disabling user '%s' (%s): %s", zabbix_user["username"], zabbix_user["userid"], e.args)
+        else:
+            logging.info("DRYRUN: Disabling user: '%s' (%s)", zabbix_user["username"], zabbix_user["userid"])
+
+    def enable_user(self, user):
+        # TODO: Set all correct groups at once?
+        if not self.config.dryrun:
+            try:
+                usergroup_id = self.api.usergroup.get(filter={"name": self.config.usergroup_all})[0]["usrgrpid"]
+                role_map = {role["name"]: role["roleid"] for role in self.api.role.get()}
+
+                if user.role not in role_map:
+                    logging.error("Unable to enable user '%s'. Role does not exist: %s", user.username, repr(user.role))
+                    return
+
+                users = self.api.user.get(filter={"username": user.username})
+                if users:
+                    zabbix_user = users[0]
+                    self.api.user.update(userid=zabbix_user["userid"], usrgrps=[{"usrgrpid": usergroup_id}])
+                    logging.info("Enabling old user: '%s' (%s)", zabbix_user["username"], zabbix_user["userid"])
+                else:
+                    result = self.api.user.create(username=user.username, name=user.name, surname=user.lastname, roleid=role_map[user.role], usrgrps=[{"usrgrpid": usergroup_id}])
+                    logging.info("Enabling new user: '%s' (%s)", user.username, result["userids"][0])
+            except pyzabbix.ZabbixAPIException as e:
+                logging.error("Error when enabling/creating user '%s': %s", user.username, e.args)
+        else:
+            logging.info("DRYRUN: Enabling user: '%s'", user.username)
+
+    def set_usergroups(self, user):
+        # TODO: Set all correct groups at once?
+        if not self.config.dryrun:
+            try:
+                usergroup_id = self.api.usergroup.get(filter={"name": self.config.usergroup_all})[0]["usrgrpid"]
+                role_map = {role["name"]: role["roleid"] for role in self.api.role.get()}
+
+                if user.role not in role_map:
+                    logging.error("Unable to enable user '%s'. Role does not exist: %s", user.username, repr(user.role))
+                    return
+
+                users = self.api.user.get(filter={"username": user.username})
+                if users:
+                    zabbix_user = users[0]
+                    self.api.user.update(userid=zabbix_user["userid"], usrgrps=[{"usrgrpid": usergroup_id}])
+                    logging.info("Enabling old user: '%s' (%s)", zabbix_user["username"], zabbix_user["userid"])
+                else:
+                    result = self.api.user.create(username=user.username, name=user.name, surname=user.lastname, roleid=role_map[user.role], usrgrps=[{"usrgrpid": usergroup_id}])
+                    logging.info("Enabling new user: '%s' (%s)", user.username, result["userids"][0])
+            except pyzabbix.ZabbixAPIException as e:
+                logging.error("Error when enabling/creating user '%s': %s", user.username, e.args)
+        else:
+            logging.info("DRYRUN: Enabling user: '%s'", user.username)
+
+    def do_update(self):
+        with open(self.user_file, "r") as f:
+            user_file_content = json.loads(f.read())
+
+            users = {user["username"]: models.User(**user) for user in user_file_content["users"]}
+            #usergroups = {usergroup["name"]: usergroup for usergroup in user_file_content["groups"]}  # TODO: Care about this. Rename to "groupconfig"? Make it a model
+
+        zabbix_users = {user["username"]: user for user in self.api.user.get(output=["userid", "username", "roleid", "name", "surname"], selectUsrgrps=["usrgrpid", "name"], selectRole=["roleid", "name"])}
+        # TODO: We need the templategroups and hostgroups here, if the permissions are to make any sense:
+        zabbix_usergroups = {usergroup["name"]: usergroup for usergroup in self.api.usergroup.get(output=["usrgrpid", "name", "gui_access", "users_status"], selectHostGroupRights=["id", "permission"], selectTemplateGroupRights=["id", "permission"])}
+
+        zabbix_managed_users = []
+        zabbix_manual_users = []
+
+        for username, user in zabbix_users.items():
+            usergroup_names = {group["name"] for group in user["usrgrps"]}
+            if self.config.usergroup_manual in usergroup_names:
+                zabbix_manual_users.append(user)
+            else:
+                zabbix_managed_users.append(user)
+
+        usernames = set(users.keys())
+        zabbix_usernames = set(zabbix_users.keys())
+        zabbix_managed_usernames = {user["username"] for user in zabbix_managed_users}
+        zabbix_manual_usernames = {user["username"] for user in zabbix_manual_users}
+
+        usernames_to_remove = list(zabbix_managed_usernames - usernames - zabbix_manual_usernames)
+        usernames_to_add = list(usernames - zabbix_managed_usernames - zabbix_manual_usernames)
+        usernames_in_both = list(usernames.intersection(zabbix_managed_usernames) - zabbix_manual_usernames)
+        usernames_in_manual_and_source = list(usernames.intersection(zabbix_manual_usernames))
+
+        # TODO: Implement some kind of failsafe before update?
+
+        # TODO: Log usernames_in_manual_and_source. These are a problem. They should preferably not exist.
+
+        for username in usernames_to_remove:
+            if self.stop_event.is_set():
+                logging.debug("Told to stop. Breaking")
+                break
+            zabbix_user = zabbix_users[username]
+            # TODO: Check if not disabled and not just in disabled usergroup
+            if len(zabbix_user["usrgrps"]) != 1 or zabbix_user["usrgrps"][0]["name"] != self.config.usergroup_disabled:
+                self.disable_user(zabbix_user)
+
+        for username in usernames_to_add:
+            if self.stop_event.is_set():
+                logging.debug("Told to stop. Breaking")
+                break
+            user = users[username]
+            self.enable_user(user)
+
+        for username in usernames_in_both:
+            # Check if these users are good
+
+            if self.stop_event.is_set():
+                logging.debug("Told to stop. Breaking")
+                break
+
+            user = users[username]
+            zabbix_user = zabbix_users[username]
+
+            # Check names
+            if user.name != zabbix_user["name"] or user.lastname != zabbix_user["surname"]:
+                logging.info("Setting name on user '%s'. Old: %s %s. New: %s %s", user.username, zabbix_user["name"], zabbix_user["surname"], user.name, user.lastname)
+                # TODO: Catch exception of API call:
+                self.api.user.update(userid=zabbix_user["userid"], name=user.name, surname=user.lastname)
+
+            # TODO: Check groups
+            usergroups = {self.config.usergroup_all} | set(user.usergroups)
+            zabbix_user_usergroup_names = {usergroup["name"] for usergroup in zabbix_user["usrgrps"]}
+
+            if usergroups != zabbix_user_usergroup_names:
+                logging.debug(f"XXXXXXXX {user.username} FIX GROUPS {usergroups} != {zabbix_user_usergroup_names}")
+
+            # TODO ....
+
+            # Check role
+            role_map = {role["name"]: role["roleid"] for role in self.api.role.get()}
+            if user.role not in role_map:
+                logging.error("Unable to update user '%s'. Role does not exist: %s", user.username, repr(user.role))
+                # TODO: Disable the user here?
+            elif (roleid := role_map[user.role]) != zabbix_user["roleid"]:
+                # TODO: Log name of role (not id):
+                logging.info("Setting role on user '%s'. Old: %s. New: %s", user.username, zabbix_user["roleid"], role_map[user.role])
+                # TODO: Catch exception of API call:
+                self.api.user.update(userid=zabbix_user["userid"], roleid=roleid)
