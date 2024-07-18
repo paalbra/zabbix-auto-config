@@ -44,9 +44,14 @@ class ZabbixSettings(BaseSettings):
     hostgroup_source_prefix: str = "Source-"
     hostgroup_importance_prefix: str = "Importance-"
 
+    usergroup_all: str = "All-users"
+    usergroup_manual: str = "All-manual-users"
+    usergroup_disabled: str = "All-disabled-users"
+
 class ZacSettings(BaseSettings):
     source_collector_dir: str
     host_modifier_dir: str
+    user_file: str
     db_uri: str
     merge_interval: int = 60
     zabbix_update_interval: int = 60
@@ -164,3 +169,22 @@ class Host(BaseModel):
             self.proxy_pattern = sorted(list(proxy_patterns))[0]
         elif len(proxy_patterns) == 1:
             self.proxy_pattern = proxy_patterns.pop()
+
+
+class Usergroup(BaseModel):
+    name: str
+    gui_access: int = 0
+    users_status: int = 0
+
+    hostgroup_rights: Set[Tuple[str, int]] = []
+    templategroup_rights: Set[Tuple[str, int]] = []
+
+
+class User(BaseModel):
+    # TODO: enabled?
+    username: str
+    name: str
+    lastname: str
+    role: str
+
+    usergroups: List[str] = []

@@ -17,12 +17,15 @@ failsafe = 20
 tags_prefix = "zac_"
 managed_inventory = ["location"]
 
-# Names of hostgroups that zabbix-auto-config will manage.
+# Names of hostgroups/usergroups that zabbix-auto-config will manage.
 #hostgroup_all = "All-hosts"
 #hostgroup_manual = "All-manual-hosts"
 #hostgroup_disabled = "All-auto-disabled-hosts"
 #hostgroup_source_prefix = "Source-"
 #hostgroup_importance_prefix = "Importance-"
+#usergroup_all = "All-users"
+#usergroup_manual = "All-manual-users"
+#usergroup_disabled = "All-disabled-users"
 
 [source_collectors.mysource]
 module_name = "mysource"

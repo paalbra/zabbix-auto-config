@@ -132,6 +132,26 @@ def preflight(config):
             hostgroup = api.hostgroup.create(name=hostgroup_name)
             logging.info(f"Created hostgroup: {hostgroup_name} ({hostgroup['groupids'][0]})")
 
+    # Create required user groups if missing
+    if not (usergroup := api.usergroup.get(filter={"name": config.zabbix.usergroup_all})):
+            logging.warning(f"Missing required user group. Will create: {config.zabbix.usergroup_all}")
+            usergroup = api.usergroup.create(name=config.zabbix.usergroup_all, gui_access=2, users_status=0)
+            logging.info(f"Created usergroup: {config.zabbix.usergroup_all} ({usergroup['usrgrpids'][0]})")
+    else:
+        if usergroup[0]["gui_access"] != "2" or usergroup[0]["users_status"] != "0":
+            logging.info(f"Usergroup configuration wrong (gui_access={usergroup[0]['gui_access']} users_status={usergroup[0]['users_status']}). Will fix: {config.zabbix.usergroup_all}")
+            api.usergroup.update(usrgrpid=usergroup[0]["usrgrpid"], gui_access=2, users_status=0)
+            logging.info(f"Updated usergroup: {config.zabbix.usergroup_all}")
+    if not (usergroup := api.usergroup.get(filter={"name": config.zabbix.usergroup_disabled})):
+            logging.warning(f"Missing required user group. Will create: {config.zabbix.usergroup_disabled}")
+            usergroup = api.usergroup.create(name=config.zabbix.usergroup_disabled, gui_access=2, users_status=0)
+            logging.info(f"Created usergroup: {config.zabbix.usergroup_disabled} ({usergroup['usrgrpids'][0]})")
+    else:
+        if usergroup[0]["gui_access"] != "3" or usergroup[0]["users_status"] != "1":
+            logging.info(f"Usergroup configuration wrong (gui_access={usergroup[0]['gui_access']} users_status={usergroup[0]['users_status']}). Will fix: {config.zabbix.usergroup_disabled}")
+            api.usergroup.update(usrgrpid=usergroup[0]["usrgrpid"], gui_access=3, users_status=1)
+            logging.info(f"Updated usergroup: {config.zabbix.usergroup_disabled}")
+
 
 def main():
     exit_code = os.EX_OK
@@ -180,6 +200,10 @@ def main():
         processes.append(process)
 
         process = processing.ZabbixTemplateUpdater("zabbix-template-updater", state_manager.dict(), config.zac, config.zabbix)
+        processes.append(process)
+
+        # TODO: Make user updater optional?
+        process = processing.ZabbixUserUpdater("zabbix-user-updater", state_manager.dict(), config.zac, config.zabbix, config.zac.user_file)
         processes.append(process)
     except exceptions.ZACException as e:
         logging.error("Failed to initialize child processes. Exiting: %s", str(e))
