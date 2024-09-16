@@ -486,7 +486,7 @@ class ZabbixHostUpdater(ZabbixUpdater):
                                                                          selectGroups=["groupid", "name"],
                                                                          selectInterfaces=["dns", "interfaceid", "ip", "main", "port", "type", "useip", "details"],
                                                                          selectInventory=self.config.managed_inventory,
-                                                                         selectParentTemplates=["templateid", "host"],
+                                                                         selectParentTemplates=["templateid"],
                                                                          selectTags=["tag", "value"],
                                                                          )}
         zabbix_proxies = {proxy["name"]: proxy for proxy in self.api.proxy.get(output=["proxyid", "name"])}
