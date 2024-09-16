@@ -414,7 +414,7 @@ class ZabbixHostUpdater(ZabbixUpdater):
 
     def clear_proxy(self, zabbix_host):
         if not self.config.dryrun:
-            self.api.host.update(hostid=zabbix_host["hostid"], proxyid="0")
+            self.api.host.update(hostid=zabbix_host["hostid"], monitored_by=0, proxyid="0")
             logging.info("Clearing proxy on host: '%s' (%s)", zabbix_host["host"], zabbix_host["hostid"])
         else:
             logging.info("DRYRUN: Clearing proxy on host: '%s' (%s)", zabbix_host["host"], zabbix_host["hostid"])
@@ -463,7 +463,7 @@ class ZabbixHostUpdater(ZabbixUpdater):
 
     def set_proxy(self, zabbix_host, zabbix_proxy):
         if not self.config.dryrun:
-            self.api.host.update(hostid=zabbix_host["hostid"], proxyid=zabbix_proxy["proxyid"])
+            self.api.host.update(hostid=zabbix_host["hostid"], monitored_by=1, proxyid=zabbix_proxy["proxyid"])
             logging.info("Setting proxy (%s) on host: '%s' (%s)", zabbix_proxy["name"], zabbix_host["host"], zabbix_host["hostid"])
         else:
             logging.info("DRYRUN: Setting proxy (%s) on host: '%s' (%s)", zabbix_proxy["name"], zabbix_host["host"], zabbix_host["hostid"])
