@@ -1036,7 +1036,9 @@ class ZabbixUserUpdater(ZabbixUpdater):
         zabbix_managed_usernames = {user["username"] for user in zabbix_managed_users}
         zabbix_manual_usernames = {user["username"] for user in zabbix_manual_users}
 
-        # TODO: Should we warn about configured users that are ignored?
+        if usernames_in_ignored_and_source := usernames.intersection(ignored_users):
+            logging.warning("There are configured users that are ignored: %s", ", ".join(usernames_in_ignored_and_source))
+
         usernames_to_remove = zabbix_managed_usernames - usernames - zabbix_manual_usernames - ignored_users
         usernames_to_add = usernames - zabbix_managed_usernames - zabbix_manual_usernames - ignored_users
         usernames_in_both = usernames.intersection(zabbix_managed_usernames) - zabbix_manual_usernames - ignored_users
