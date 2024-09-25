@@ -469,6 +469,13 @@ class ZabbixHostUpdater(ZabbixUpdater):
         else:
             logging.info("DRYRUN: Setting proxy (%s) on host: '%s' (%s)", zabbix_proxy["name"], zabbix_host["host"], zabbix_host["hostid"])
 
+    def set_proxy_group(self, zabbix_host, zabbix_proxy_group):
+        if not self.config.dryrun:
+            self.api.host.update(hostid=zabbix_host["hostid"], monitored_by=2, proxy_groupid=zabbix_proxy_group["proxy_groupid"])
+            logging.info("Setting proxy group (%s) on host: '%s' (%s)", zabbix_proxy_group["name"], zabbix_host["host"], zabbix_host["hostid"])
+        else:
+            logging.info("DRYRUN: Setting proxy group (%s) on host: '%s' (%s)", zabbix_proxy_group["name"], zabbix_host["host"], zabbix_host["hostid"])
+
     def set_tags(self, zabbix_host, tags):
         if not self.config.dryrun:
             zabbix_tags = utils.zac_tags2zabbix_tags(tags)
@@ -483,7 +490,7 @@ class ZabbixHostUpdater(ZabbixUpdater):
             db_hosts = {t[0]["hostname"]: models.Host(**t[0]) for t in db_cursor.fetchall()}
         # status:0 = monitored, flags:0 = non-discovered host
         zabbix_hosts = {host["host"]: host for host in self.api.host.get(filter={"status": 0, "flags": 0},
-                                                                         output=["hostid", "host", "status", "flags", "proxyid", "inventory_mode"],
+                                                                         output=["hostid", "host", "status", "flags", "proxyid", "proxy_groupid", "inventory_mode"],
                                                                          selectGroups=["groupid", "name"],
                                                                          selectInterfaces=["dns", "interfaceid", "ip", "main", "port", "type", "useip", "details"],
                                                                          selectInventory=self.config.managed_inventory,
@@ -491,6 +498,7 @@ class ZabbixHostUpdater(ZabbixUpdater):
                                                                          selectTags=["tag", "value"],
                                                                          )}
         zabbix_proxies = {proxy["name"]: proxy for proxy in self.api.proxy.get(output=["proxyid", "name"])}
+        zabbix_proxy_groups = {proxy_group["name"]: proxy_group for proxy_group in self.api.proxygroup.get(output=["proxy_groupid", "name"])}
         zabbix_managed_hosts = []
         zabbix_manual_hosts = []
 
@@ -553,15 +561,27 @@ class ZabbixHostUpdater(ZabbixUpdater):
             db_host = db_hosts[hostname]
             zabbix_host = zabbix_hosts[hostname]
 
-            # Check proxy. A host with proxy_pattern should get a proxy that matches the pattern.
-            zabbix_proxy_id = zabbix_host["proxyid"]
-            zabbix_proxy = [proxy for proxy in zabbix_proxies.values() if proxy["proxyid"] == zabbix_proxy_id]
+            # Check proxy. A host with proxy_pattern should get a proxy or proxy group that matches the pattern.
+            # Proxy groups are prioritized if proxies and proxy groups both match
+            zabbix_proxy = [proxy for proxy in zabbix_proxies.values() if proxy["proxyid"] == zabbix_host["proxyid"]]
+            zabbix_proxy_group = [proxy_group for proxy_group in zabbix_proxy_groups.values() if proxy_group["proxy_groupid"] == zabbix_host["proxy_groupid"]]
             current_zabbix_proxy = zabbix_proxy[0] if zabbix_proxy else None
+            current_zabbix_proxy_group = zabbix_proxy_group[0] if zabbix_proxy_group else None
             if db_host.proxy_pattern:
+                possible_proxy_groups = [proxy_group for proxy_group in zabbix_proxy_groups.values() if re.match(db_host.proxy_pattern, proxy_group["name"])]
                 possible_proxies = [proxy for proxy in zabbix_proxies.values() if re.match(db_host.proxy_pattern, proxy["name"])]
-                if not possible_proxies:
-                    logging.warning("Proxy pattern ('%s') for host, '%s' (%s), doesn't match any proxies.", db_host.proxy_pattern, hostname, zabbix_host["hostid"])
-                else:
+
+                if not (possible_proxies or possible_proxy_groups):
+                    logging.warning("Proxy pattern ('%s') for host, '%s' (%s), doesn't match any proxies or proxy groups.", db_host.proxy_pattern, hostname, zabbix_host["hostid"])
+                elif possible_proxy_groups:
+                    new_proxy_group = random.choice(possible_proxy_groups)
+                    if current_zabbix_proxy_group and not re.match(db_host.proxy_pattern, current_zabbix_proxy_group["name"]):
+                        # Wrong proxy group, set new
+                        self.set_proxy_group(zabbix_host, new_proxy_group)
+                    elif not current_zabbix_proxy_group:
+                        # Missing proxy group, set new
+                        self.set_proxy_group(zabbix_host, new_proxy_group)
+                elif possible_proxies:
                     new_proxy = random.choice(possible_proxies)
                     if current_zabbix_proxy and not re.match(db_host.proxy_pattern, current_zabbix_proxy["name"]):
                         # Wrong proxy, set new
@@ -569,7 +589,7 @@ class ZabbixHostUpdater(ZabbixUpdater):
                     elif not current_zabbix_proxy:
                         # Missing proxy, set new
                         self.set_proxy(zabbix_host, new_proxy)
-            elif not db_host.proxy_pattern and current_zabbix_proxy:
+            elif not db_host.proxy_pattern and (current_zabbix_proxy or current_zabbix_proxy_group):
                 # Should not have proxy, remove
                 self.clear_proxy(zabbix_host)
 
