@@ -491,7 +491,7 @@ class ZabbixHostUpdater(ZabbixUpdater):
         # status:0 = monitored, flags:0 = non-discovered host
         zabbix_hosts = {host["host"]: host for host in self.api.host.get(filter={"status": 0, "flags": 0},
                                                                          output=["hostid", "host", "status", "flags", "proxyid", "proxy_groupid", "inventory_mode"],
-                                                                         selectGroups=["groupid", "name"],
+                                                                         selectHostGroups=["groupid", "name"],
                                                                          selectInterfaces=["dns", "interfaceid", "ip", "main", "port", "type", "useip", "details"],
                                                                          selectInventory=self.config.managed_inventory,
                                                                          selectParentTemplates=["templateid"],
@@ -502,15 +502,15 @@ class ZabbixHostUpdater(ZabbixUpdater):
         zabbix_managed_hosts = []
         zabbix_manual_hosts = []
 
-        for hostname, host in zabbix_hosts.items():
+        for _, zabbix_host in zabbix_hosts.items():
             if self.stop_event.is_set():
                 logging.debug("Told to stop. Breaking")
                 break
-            hostgroup_names = [group["name"] for group in host["groups"]]
+            hostgroup_names = [group["name"] for group in zabbix_host["hostgroups"]]
             if self.config.hostgroup_manual in hostgroup_names:
-                zabbix_manual_hosts.append(host)
+                zabbix_manual_hosts.append(zabbix_host)
             else:
-                zabbix_managed_hosts.append(host)
+                zabbix_managed_hosts.append(zabbix_host)
 
         db_hostnames = set(db_hosts.keys())
         zabbix_hostnames = set(zabbix_hosts.keys())
@@ -705,14 +705,14 @@ class ZabbixTemplateUpdater(ZabbixUpdater):
         with self.db_connection, self.db_connection.cursor() as db_cursor:
             db_cursor.execute(f"SELECT data FROM {self.db_hosts_table} WHERE data->>'enabled' = 'true'")
             db_hosts = {t[0]["hostname"]: models.Host(**t[0]) for t in db_cursor.fetchall()}
-        zabbix_hosts = {host["host"]: host for host in self.api.host.get(filter={"status": 0, "flags": 0}, output=["hostid", "host"], selectGroups=["groupid", "name"], selectParentTemplates=["templateid", "host"])}
+        zabbix_hosts = {host["host"]: host for host in self.api.host.get(filter={"status": 0, "flags": 0}, output=["hostid", "host"], selectHostGroups=["groupid", "name"], selectParentTemplates=["templateid", "host"])}
 
         for zabbix_hostname, zabbix_host in zabbix_hosts.items():
             if self.stop_event.is_set():
                 logging.debug("Told to stop. Breaking")
                 break
 
-            if self.config.hostgroup_manual in [group["name"] for group in zabbix_host["groups"]]:
+            if self.config.hostgroup_manual in [group["name"] for group in zabbix_host["hostgroups"]]:
                 logging.debug("Skipping manual host: '%s' (%s)", zabbix_hostname, zabbix_host["hostid"])
                 continue
 
@@ -790,14 +790,14 @@ class ZabbixHostgroupUpdater(ZabbixUpdater):
         with self.db_connection, self.db_connection.cursor() as db_cursor:
             db_cursor.execute(f"SELECT data FROM {self.db_hosts_table} WHERE data->>'enabled' = 'true'")
             db_hosts = {t[0]["hostname"]: models.Host(**t[0]) for t in db_cursor.fetchall()}
-        zabbix_hosts = {host["host"]: host for host in self.api.host.get(filter={"status": 0, "flags": 0}, output=["hostid", "host"], selectGroups=["groupid", "name"], selectParentTemplates=["templateid", "host"])}
+        zabbix_hosts = {host["host"]: host for host in self.api.host.get(filter={"status": 0, "flags": 0}, output=["hostid", "host"], selectHostGroups=["groupid", "name"], selectParentTemplates=["templateid", "host"])}
 
         for zabbix_hostname, zabbix_host in zabbix_hosts.items():
             if self.stop_event.is_set():
                 logging.debug("Told to stop. Breaking")
                 break
 
-            if self.config.hostgroup_manual in [group["name"] for group in zabbix_host["groups"]]:
+            if self.config.hostgroup_manual in [group["name"] for group in zabbix_host["hostgroups"]]:
                 logging.debug("Skipping manual host: '%s' (%s)", zabbix_hostname, zabbix_host["hostid"])
                 continue
 
@@ -822,7 +822,7 @@ class ZabbixHostgroupUpdater(ZabbixUpdater):
                 synced_hostgroup_names.add(f"{self.config.hostgroup_importance_prefix}X")
 
             host_hostgroups = {}
-            for zabbix_hostgroup in zabbix_host["groups"]:
+            for zabbix_hostgroup in zabbix_host["hostgroups"]:
                 host_hostgroups[zabbix_hostgroup["name"]] = zabbix_hostgroup["groupid"]
 
             old_host_hostgroups = host_hostgroups.copy()
