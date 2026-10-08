@@ -987,6 +987,11 @@ class ZabbixUserUpdater(ZabbixUpdater):
         zabbix_hostgroups = {hostgroup["name"]: hostgroup for hostgroup in self.api.hostgroup.get(output=["groupid", "name"])}
         zabbix_templategroups = {templategroup["name"]: templategroup for templategroup in self.api.templategroup.get(output=["groupid", "name"])}
 
+        # Ensure all rights are sorted, and ready for comparison
+        for _, zabbix_usergroup in zabbix_usergroups.items():
+            zabbix_usergroup["hostgroup_rights"] = sorted(zabbix_usergroup["hostgroup_rights"], key=lambda d: d["id"])
+            zabbix_usergroup["templategroup_rights"] = sorted(zabbix_usergroup["templategroup_rights"], key=lambda d: d["id"])
+
         # Here we should make sure all configured usergroups exist and that they are configured properly
         for usergroup_name, usergroup in usergroups.items():
             if self.stop_event.is_set():
@@ -1010,8 +1015,8 @@ class ZabbixUserUpdater(ZabbixUpdater):
 
                 # Check the permissions of the usergroup
                 # TODO: Warn if configured groups doesn't exist?
-                hostgroup_rights = [{"id": zabbix_hostgroups[name]["groupid"], "permission": str(permission)} for name,permission in usergroup.hostgroup_rights if name in zabbix_hostgroups]
-                templategroup_rights = [{"id": zabbix_templategroups[name]["groupid"], "permission": str(permission)} for name,permission in usergroup.templategroup_rights if name in zabbix_templategroups]
+                hostgroup_rights = sorted([{"id": zabbix_hostgroups[name]["groupid"], "permission": str(permission)} for name,permission in usergroup.hostgroup_rights if name in zabbix_hostgroups], key=lambda d: d["id"])
+                templategroup_rights = sorted([{"id": zabbix_templategroups[name]["groupid"], "permission": str(permission)} for name,permission in usergroup.templategroup_rights if name in zabbix_templategroups], key=lambda d: d["id"])
 
                 if hostgroup_rights != zabbix_usergroup["hostgroup_rights"]:
                     logging.info("Setting hostgroup rights on usergroup '%s'. Old: '%s'. New: '%s'", usergroup.name, zabbix_usergroup["hostgroup_rights"], hostgroup_rights)
